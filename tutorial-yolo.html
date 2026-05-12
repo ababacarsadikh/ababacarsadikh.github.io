@@ -801,7 +801,7 @@ names:
             <h2>Entraîner le modèle</h2>
         </div>
 
-        <p>YOLOv8 propose plusieurs tailles de modèle. Commencez par <strong>yolov8n</strong> (nano) : très rapide à entraîner, bon pour valider que tout fonctionne.</p>
+        <p>Choisissez un modèle selon votre matériel. <strong>yolov8n</strong> est idéal pour commencer — rapide même sur CPU.</p>
 
         <div class="table-wrap">
             <table>
@@ -809,34 +809,95 @@ names:
                     <tr><th>Modèle</th><th>Vitesse</th><th>Précision</th><th>Recommandé pour</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td><code>yolov8n.pt</code></td><td>⚡⚡⚡</td><td>★★☆</td><td>Démarrage rapide, CPU</td></tr>
+                    <tr><td><code>yolov8n.pt</code></td><td>⚡⚡⚡</td><td>★★☆</td><td>CPU, démarrage rapide</td></tr>
                     <tr><td><code>yolov8s.pt</code></td><td>⚡⚡☆</td><td>★★★</td><td>Bon équilibre général</td></tr>
                     <tr><td><code>yolov8m.pt</code></td><td>⚡☆☆</td><td>★★★★</td><td>GPU disponible</td></tr>
                 </tbody>
             </table>
         </div>
 
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Lancement — ligne de commande</h3>
+
         <div class="code-block">
             <div class="code-header">
-                <span class="code-lang">CMD — Lancer l'entraînement</span>
+                <span class="code-lang">CMD</span>
                 <button class="copy-btn" onclick="copyCode(this)">Copier</button>
             </div>
-            <pre>yolo detect train \
-  data=dataset.yaml \
-  model=yolov8n.pt \
-  epochs=50 \
-  imgsz=640 \
-  batch=16</pre>
+            <pre>yolo detect train data=dataset.yaml model=yolov8n.pt epochs=50 imgsz=640 batch=16</pre>
         </div>
 
-        <p>YOLOv8 télécharge automatiquement le modèle de base si absent. L'entraînement peut durer de quelques minutes à plusieurs heures selon votre matériel.</p>
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Lancement — API Python</h3>
 
-        <p>Le meilleur modèle est automatiquement sauvegardé dans :</p>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre><span class="kw">from</span> ultralytics <span class="kw">import</span> YOLO
+
+model = <span class="fn">YOLO</span>(<span class="str">"yolov8n.pt"</span>)  <span class="cm"># modèle pré-entraîné</span>
+results = model.<span class="fn">train</span>(
+    data=<span class="str">"dataset.yaml"</span>,
+    epochs=<span class="num">50</span>,
+    imgsz=<span class="num">640</span>,
+    batch=<span class="num">16</span>,
+    device=<span class="num">0</span>   <span class="cm"># 0=GPU · "cpu"=CPU · "mps"=Apple Silicon</span>
+)</pre>
+        </div>
+
+        <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <p>Le périphérique est détecté automatiquement si <code>device</code> n'est pas précisé : GPU NVIDIA en priorité, sinon CPU. Sur Mac Apple Silicon, utilisez <code>device="mps"</code>.</p>
+        </div>
+
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Paramètres clés</h3>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Paramètre</th><th>Défaut</th><th>Rôle</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>epochs</code></td><td>100</td><td>Nombre de passages sur le dataset — augmentez si les métriques progressent encore</td></tr>
+                    <tr><td><code>imgsz</code></td><td>640</td><td>Résolution d'entrée — plus grand = plus précis mais plus lent</td></tr>
+                    <tr><td><code>batch</code></td><td>16</td><td>Taille du lot — <code>batch=-1</code> pour auto (60 % VRAM)</td></tr>
+                    <tr><td><code>patience</code></td><td>100</td><td>Arrêt anticipé si aucune amélioration après N époques</td></tr>
+                    <tr><td><code>resume</code></td><td>False</td><td>Reprendre depuis <code>last.pt</code> après une interruption</td></tr>
+                    <tr><td><code>device</code></td><td>auto</td><td><code>0</code> GPU · <code>cpu</code> · <code>mps</code> Apple · <code>[0,1]</code> multi-GPU</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Reprendre un entraînement interrompu</h3>
+
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre>model = <span class="fn">YOLO</span>(<span class="str">"runs/detect/train/weights/last.pt"</span>)
+results = model.<span class="fn">train</span>(resume=<span class="num">True</span>)</pre>
+        </div>
+
+        <div class="callout warning">
+            <span class="callout-icon">⚠️</span>
+            <p>Sous Windows, si vous lancez l'entraînement via un script <code>.py</code>, encapsulez votre code dans <code>if __name__ == "__main__":</code> pour éviter une <code>RuntimeError</code> de multiprocessing.</p>
+        </div>
+
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Fichiers générés</h3>
 
         <div class="file-tree">
-<span class="dir">runs/detect/train/weights/</span>
-├── <span class="highlight">best.pt</span>     <span class="file">← meilleur modèle (à utiliser)</span>
-└── <span class="file">last.pt</span>      <span class="file">← dernier checkpoint</span>
+<span class="dir">runs/detect/train/</span>
+├── <span class="dir">weights/</span>
+│   ├── <span class="highlight">best.pt</span>       <span class="file">← meilleur modèle (à utiliser)</span>
+│   └── <span class="file">last.pt</span>        <span class="file">← dernier checkpoint (reprise)</span>
+├── <span class="file">results.csv</span>   <span class="file">← métriques par époque</span>
+└── <span class="file">confusion_matrix.png</span>
+        </div>
+
+        <div class="callout success">
+            <span class="callout-icon">✅</span>
+            <p>En cas de mémoire insuffisante (OOM), YOLOv8 divise automatiquement la taille de batch par 2 et réessaie jusqu'à 3 fois.</p>
         </div>
     </section>
 
