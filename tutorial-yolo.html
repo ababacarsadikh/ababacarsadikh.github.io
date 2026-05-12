@@ -572,9 +572,11 @@
         <a class="toc-item" href="#annotation"><span class="toc-num">3</span>Annotation</a>
         <a class="toc-item" href="#config"><span class="toc-num">4</span>Configuration</a>
         <a class="toc-item" href="#train"><span class="toc-num">5</span>Entraînement</a>
-        <a class="toc-item" href="#inference"><span class="toc-num">6</span>Inférence</a>
-        <a class="toc-item" href="#webcam"><span class="toc-num">7</span>Webcam Live</a>
-        <a class="toc-item" href="#tips"><span class="toc-num">8</span>Conseils</a>
+        <a class="toc-item" href="#validation"><span class="toc-num">6</span>Validation</a>
+        <a class="toc-item" href="#inference"><span class="toc-num">7</span>Prédiction</a>
+        <a class="toc-item" href="#export"><span class="toc-num">8</span>Export</a>
+        <a class="toc-item" href="#webcam"><span class="toc-num">9</span>Webcam Live</a>
+        <a class="toc-item" href="#tips"><span class="toc-num">10</span>Conseils</a>
     </div>
 </div>
 
@@ -718,42 +720,50 @@ pip install ultralytics opencv-python</pre>
     <section class="section" id="annotation">
         <div class="section-header">
             <div class="step-num">3</div>
-            <h2>Annoter les images</h2>
+            <h2>Annoter les images avec Label Studio</h2>
         </div>
 
-        <p>L'annotation consiste à dessiner des boîtes englobantes (bounding boxes) autour des objets et à leur affecter une classe. Installez <strong>LabelImg</strong>, l'outil le plus simple pour débuter :</p>
+        <p>Label Studio est un outil d'annotation open-source puissant, avec interface web, support multi-utilisateurs et export direct au format YOLO.</p>
 
         <div class="code-block">
             <div class="code-header">
-                <span class="code-lang">CMD</span>
+                <span class="code-lang">CMD — Installation & lancement</span>
                 <button class="copy-btn" onclick="copyCode(this)">Copier</button>
             </div>
-            <pre>pip install labelImg
-labelImg</pre>
+            <pre>pip install label-studio
+label-studio start</pre>
         </div>
+
+        <p>Label Studio s'ouvre automatiquement sur <code>http://localhost:8080</code>. Créez un compte local, puis un nouveau projet.</p>
+
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Workflow dans Label Studio</h3>
+
+        <ul>
+            <li><strong>Import :</strong> glissez vos images ou pointez vers un dossier local</li>
+            <li><strong>Template :</strong> choisissez <em>Object Detection with Bounding Boxes</em></li>
+            <li><strong>Annotation :</strong> dessinez les bounding boxes et assignez une classe (ex: <code>bottle</code>)</li>
+            <li><strong>Export :</strong> <em>Export → YOLO</em> — génère directement les <code>.txt</code> et le <code>classes.txt</code></li>
+        </ul>
 
         <div class="callout warning">
             <span class="callout-icon">⚠️</span>
-            <p><strong>Critique :</strong> dans LabelImg, sélectionnez le format <strong>YOLO</strong> et non PascalVOC (XML). Le format YOLO génère des fichiers <code>.txt</code>, PascalVOC génère du <code>.xml</code> qui ne fonctionnera pas.</p>
+            <p>À l'export, vérifiez que le nom de classe dans Label Studio correspond exactement à celui de votre <code>dataset.yaml</code> — la casse compte (<code>bottle</code> ≠ <code>Bottle</code>).</p>
         </div>
 
-        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Format d'un fichier label YOLO</h3>
-        <p>Chaque ligne d'un <code>.txt</code> représente un objet dans l'image :</p>
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Format d'un fichier label YOLO généré</h3>
 
         <div class="code-block">
             <div class="code-header">
-                <span class="code-lang">Format YOLO</span>
+                <span class="code-lang">Format YOLO (.txt)</span>
                 <button class="copy-btn" onclick="copyCode(this)">Copier</button>
             </div>
-            <pre><span class="cm"># classe  x_centre  y_centre  largeur  hauteur  (tout normalisé entre 0 et 1)</span>
+            <pre><span class="cm"># classe  x_centre  y_centre  largeur  hauteur  (valeurs normalisées 0→1)</span>
 0 0.512 0.433 0.221 0.610</pre>
         </div>
 
-        <p>Toutes les valeurs sont normalisées par rapport à la taille de l'image. YOLO gère cela automatiquement quand vous utilisez LabelImg en mode YOLO.</p>
-
         <div class="callout info">
             <span class="callout-icon">💡</span>
-            <p><strong>Alternative rapide :</strong> Roboflow propose un outil d'annotation en ligne gratuit + export direct au format YOLOv8. Idéal pour collaborer à plusieurs.</p>
+            <p>Label Studio gère la normalisation automatiquement à l'export. Placez ensuite les images dans <code>images/train/</code> et les <code>.txt</code> dans <code>labels/train/</code>.</p>
         </div>
     </section>
 
@@ -903,37 +913,168 @@ results = model.<span class="fn">train</span>(resume=<span class="num">True</spa
 
     <div class="divider"></div>
 
-    <!-- SECTION 6 - INFERENCE -->
-    <section class="section" id="inference">
+    <!-- SECTION 6 - VALIDATION -->
+    <section class="section" id="validation">
         <div class="section-header">
             <div class="step-num">6</div>
-            <h2>Tester le modèle sur une image</h2>
+            <h2>Valider le modèle</h2>
         </div>
 
-        <p>Avant le déploiement webcam, testez votre modèle sur une image statique :</p>
+        <p>La validation mesure la qualité du modèle sur vos données de test via des métriques standardisées. Elle s'exécute automatiquement à chaque époque pendant l'entraînement, mais vous pouvez la relancer manuellement :</p>
+
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre><span class="kw">from</span> ultralytics <span class="kw">import</span> YOLO
+
+model = <span class="fn">YOLO</span>(<span class="str">"runs/detect/train/weights/best.pt"</span>)
+metrics = model.<span class="fn">val</span>()
+
+<span class="fn">print</span>(metrics.box.map)    <span class="cm"># mAP50-95 (métrique principale)</span>
+<span class="fn">print</span>(metrics.box.map50)  <span class="cm"># mAP à seuil IoU 0.5</span>
+<span class="fn">print</span>(metrics.box.map75)  <span class="cm"># mAP à seuil IoU 0.75</span></pre>
+        </div>
+
+        <div class="callout info">
+            <span class="callout-icon">ℹ️</span>
+            <p>Le modèle mémorise ses paramètres d'entraînement : pas besoin de re-spécifier <code>data</code> ou <code>imgsz</code>, ils sont appliqués automatiquement.</p>
+        </div>
+
+        <h3 style="color:var(--text);margin:24px 0 12px;font-size:1.05em;">Métriques clés</h3>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Métrique</th><th>Description</th><th>Cible</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>mAP50</code></td><td>Précision moyenne à IoU 0.5 — détection "correcte"</td><td>> 0.70</td></tr>
+                    <tr><td><code>mAP50-95</code></td><td>Précision sur plusieurs seuils IoU — référence complète</td><td>> 0.50</td></tr>
+                    <tr><td><code>Precision</code></td><td>Détections correctes / total détections</td><td>> 0.80</td></tr>
+                    <tr><td><code>Recall</code></td><td>Objets détectés / total objets réels</td><td>> 0.75</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="callout warning">
+            <span class="callout-icon">⚠️</span>
+            <p>Un <strong>mAP50 faible</strong> signale généralement un dataset trop petit ou mal annoté. Un <strong>écart train/val important</strong> indique du surapprentissage : augmentez vos données ou réduisez les epochs.</p>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- SECTION 7 - INFERENCE / PREDICTION -->
+    <section class="section" id="inference">
+        <div class="section-header">
+            <div class="step-num">7</div>
+            <h2>Prédiction sur image / vidéo</h2>
+        </div>
+
+        <p>Testez votre modèle sur une image statique, une vidéo ou un dossier entier avant de passer à la webcam.</p>
 
         <div class="code-block">
             <div class="code-header">
                 <span class="code-lang">CMD</span>
                 <button class="copy-btn" onclick="copyCode(this)">Copier</button>
             </div>
-            <pre>yolo detect predict \
-  model=runs/detect/train/weights/best.pt \
-  source=test.jpg \
-  conf=0.5</pre>
+            <pre><span class="cm"># Image</span>
+yolo detect predict model=runs/detect/train/weights/best.pt source=test.jpg conf=0.5
+
+<span class="cm"># Vidéo</span>
+yolo detect predict model=best.pt source=video.mp4 conf=0.5
+
+<span class="cm"># Dossier entier</span>
+yolo detect predict model=best.pt source=images/ conf=0.5</pre>
         </div>
 
-        <p>Le résultat est sauvegardé dans <code>runs/detect/predict/</code>. Vérifiez que les boîtes sont bien placées et que la classe est correcte avant de passer à la webcam.</p>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python — avec accès aux résultats</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre><span class="kw">from</span> ultralytics <span class="kw">import</span> YOLO
+
+model = <span class="fn">YOLO</span>(<span class="str">"runs/detect/train/weights/best.pt"</span>)
+results = model.<span class="fn">predict</span>(<span class="str">"test.jpg"</span>, conf=<span class="num">0.5</span>, save=<span class="num">True</span>)
+
+<span class="kw">for</span> r <span class="kw">in</span> results:
+    <span class="fn">print</span>(r.boxes.cls)   <span class="cm"># classes détectées</span>
+    <span class="fn">print</span>(r.boxes.conf)  <span class="cm"># scores de confiance</span>
+    <span class="fn">print</span>(r.boxes.xyxy)  <span class="cm"># coordonnées des boîtes</span>
+    r.<span class="fn">show</span>()             <span class="cm"># afficher</span>
+    r.<span class="fn">save</span>(filename=<span class="str">"result.jpg"</span>)  <span class="cm"># sauvegarder</span></pre>
+        </div>
 
         <div class="callout info">
             <span class="callout-icon">💡</span>
-            <p>Le paramètre <code>conf=0.5</code> filtre les détections avec moins de 50% de confiance. Ajustez selon vos besoins : abaissez-le pour détecter plus, augmentez-le pour filtrer les faux positifs.</p>
+            <p><code>conf=0.5</code> filtre les détections sous 50% de confiance. Abaissez pour détecter plus, augmentez pour réduire les faux positifs. Les résultats sont enregistrés dans <code>runs/detect/predict/</code>.</p>
         </div>
     </section>
 
     <div class="divider"></div>
 
-    <!-- SECTION 7 - WEBCAM -->
+    <!-- SECTION 8 - EXPORT -->
+    <section class="section" id="export">
+        <div class="section-header">
+            <div class="step-num">8</div>
+            <h2>Exporter le modèle</h2>
+        </div>
+
+        <p>Exportez votre modèle pour le déployer sur d'autres plateformes ou l'accélérer significativement.</p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Format</th><th>Usage</th><th>Gain</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>onnx</code></td><td>Déploiement universel, CPU optimisé</td><td>⚡ 3× CPU</td></tr>
+                    <tr><td><code>engine</code> (TensorRT)</td><td>GPU NVIDIA, production temps réel</td><td>⚡ 5× GPU</td></tr>
+                    <tr><td><code>tflite</code></td><td>Raspberry Pi, appareils mobiles</td><td>Embarqué</td></tr>
+                    <tr><td><code>coreml</code></td><td>iPhone / Mac Apple Silicon</td><td>iOS/macOS</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre><span class="kw">from</span> ultralytics <span class="kw">import</span> YOLO
+
+model = <span class="fn">YOLO</span>(<span class="str">"runs/detect/train/weights/best.pt"</span>)
+
+<span class="cm"># ONNX — universel, accélération CPU</span>
+model.<span class="fn">export</span>(format=<span class="str">"onnx"</span>)
+
+<span class="cm"># TensorRT — GPU NVIDIA uniquement</span>
+model.<span class="fn">export</span>(format=<span class="str">"engine"</span>, half=<span class="num">True</span>)
+
+<span class="cm"># TFLite — Raspberry Pi / mobile</span>
+model.<span class="fn">export</span>(format=<span class="str">"tflite"</span>, int8=<span class="num">True</span>)</pre>
+        </div>
+
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">CMD — Prédire directement sur un modèle exporté</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copier</button>
+            </div>
+            <pre>yolo detect predict model=best.onnx source=test.jpg</pre>
+        </div>
+
+        <div class="callout success">
+            <span class="callout-icon">✅</span>
+            <p>Utilisez <code>half=True</code> (FP16) pour réduire la taille du modèle de moitié avec un impact minimal sur la précision. <code>int8=True</code> compresse encore davantage, idéal pour les appareils embarqués.</p>
+        </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- SECTION 9 - WEBCAM -->
     <section class="section" id="webcam">
         <div class="section-header">
             <div class="step-num">7</div>
