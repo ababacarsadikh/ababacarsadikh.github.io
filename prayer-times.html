@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horaires de prière localisés | ASF</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=prayer-3">
+    <link rel="stylesheet" href="style.css?v=prayer-4">
 </head>
 <body>
     <nav>
@@ -96,17 +96,22 @@
                         <strong>Prochaine prière</strong>
                         <span>Les horaires apparaîtront ici après localisation.</span>
                     </div>
+                    <div class="location-summary" id="locationSummary">
+                        <strong>Lieu utilisé</strong>
+                        <span>Aucun lieu sélectionné.</span>
+                    </div>
                     <div class="prayer-times-grid" id="timesGrid"></div>
                 </section>
             </div>
         </div>
     </main>
 
-    <script src="script.js?v=prayer-3"></script>
+    <script src="script.js?v=prayer-4"></script>
     <script>
         const statusEl = document.getElementById("status");
         const gridEl = document.getElementById("timesGrid");
         const nextEl = document.getElementById("nextPrayer");
+        const locationSummaryEl = document.getElementById("locationSummary");
         const latInput = document.getElementById("latitude");
         const lonInput = document.getElementById("longitude");
         const addressInput = document.getElementById("address");
@@ -258,10 +263,21 @@
             statusEl.textContent = label;
         }
 
+        function updateLocationSummary(latitude, longitude, addressLabel, accuracy) {
+            const accuracyText = Number.isFinite(accuracy) ? ` · précision environ ${Math.round(accuracy)} m` : "";
+            const addressText = addressLabel ? `<span>${escapeHtml(addressLabel)}</span>` : "<span>Coordonnées manuelles ou position navigateur.</span>";
+            locationSummaryEl.innerHTML = `
+                <strong>Lieu utilisé</strong>
+                ${addressText}
+                <span>Lat ${latitude.toFixed(6)} · Lon ${longitude.toFixed(6)}${accuracyText}</span>
+            `;
+        }
+
         async function loadByCoordinates(latitude, longitude, accuracy, addressLabel) {
             lastRequest = { type: "coords", latitude, longitude, accuracy };
             latInput.value = latitude.toFixed(6);
             lonInput.value = longitude.toFixed(6);
+            updateLocationSummary(latitude, longitude, addressLabel, accuracy);
 
             const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${selectedMethod()}`;
             const accuracyText = Number.isFinite(accuracy) ? ` · précision navigateur : environ ${Math.round(accuracy)} m` : "";

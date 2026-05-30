@@ -852,6 +852,22 @@ th {
     color: var(--muted);
 }
 
+.location-summary {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.location-summary strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--primary);
+}
+
 .method-note {
     margin-top: 16px;
     color: var(--muted);
