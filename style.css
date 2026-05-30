@@ -719,6 +719,7 @@ th {
     gap: 12px;
     margin-top: 18px;
     padding: 18px;
+    position: relative;
 }
 
 .field-row {
@@ -749,6 +750,49 @@ th {
 
 .method-field {
     margin-top: 18px;
+}
+
+.suggestions {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.suggestion-item {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    padding: 10px 12px;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.suggestion-item:hover,
+.suggestion-item:focus {
+    border-color: var(--soft-primary-strong);
+    background: var(--soft-primary);
+    outline: none;
+}
+
+.suggestion-name {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 700;
+}
+
+.suggestion-detail {
+    display: block;
+    color: var(--muted);
+    font-size: 0.84rem;
+}
+
+.detected-address {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
 }
 
 .prayer-status {

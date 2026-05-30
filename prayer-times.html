@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horaires de prière localisés | ASF</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=prayer-2">
+    <link rel="stylesheet" href="style.css?v=prayer-3">
 </head>
 <body>
     <nav>
@@ -24,12 +24,12 @@
         <div class="hero-inner">
             <div class="eyebrow">Géolocalisation · Méthode configurable</div>
             <h1>Horaires de <span class="gradient-text">prière</span></h1>
-            <p class="lead">Utilise ta position, une adresse ou des coordonnées précises. Sur ordinateur, la position peut être approximative : pour Toulouse, la recherche par ville ou l’entrée manuelle donne souvent un résultat plus fiable.</p>
+            <p class="lead">Utilise ta position, une adresse suggérée ou des coordonnées précises. Comme sur une carte, tape une ville, une rue ou un lieu, puis choisis l’adresse exacte dans les suggestions.</p>
 
             <div class="prayer-panel">
                 <section class="prayer-card">
                     <h2>Localisation</h2>
-                    <p>Autorise la position précise si ton navigateur la propose. Sinon, saisis une ville comme <strong>Toulouse, France</strong>, ou des coordonnées.</p>
+                    <p>Autorise la position précise si ton navigateur la propose. Sinon, saisis une ville, une rue ou un lieu comme <strong>Toulouse, France</strong>, puis sélectionne une suggestion.</p>
 
                     <div class="location-actions">
                         <button class="btn btn-primary" type="button" id="useLocation">Utiliser ma position précise</button>
@@ -39,9 +39,10 @@
                     <form class="location-form" id="addressForm">
                         <div class="field">
                             <label for="address">Ville ou adresse</label>
-                            <input id="address" name="address" type="text" placeholder="Ex : Toulouse, France">
+                            <input id="address" name="address" type="text" placeholder="Ex : 118 route de Narbonne, Toulouse" autocomplete="off">
                         </div>
-                        <button class="btn" type="submit">Calculer avec cette adresse</button>
+                        <div class="suggestions" id="suggestions" aria-live="polite"></div>
+                        <button class="btn" type="submit">Rechercher des suggestions</button>
                     </form>
 
                     <form class="location-form" id="manualForm">
@@ -86,6 +87,7 @@
                     </div>
 
                     <div class="prayer-status" id="status">En attente d’une localisation.</div>
+                    <div class="detected-address" id="detectedAddress"></div>
                     <p class="method-note" id="methodNote">Méthode utilisée : Umm Al-Qura University, Makkah.</p>
                 </section>
 
@@ -100,7 +102,7 @@
         </div>
     </main>
 
-    <script src="script.js?v=prayer-2"></script>
+    <script src="script.js?v=prayer-3"></script>
     <script>
         const statusEl = document.getElementById("status");
         const gridEl = document.getElementById("timesGrid");
@@ -108,6 +110,8 @@
         const latInput = document.getElementById("latitude");
         const lonInput = document.getElementById("longitude");
         const addressInput = document.getElementById("address");
+        const suggestionsEl = document.getElementById("suggestions");
+        const detectedAddressEl = document.getElementById("detectedAddress");
         const methodSelect = document.getElementById("methodSelect");
         const methodNote = document.getElementById("methodNote");
 
@@ -181,6 +185,69 @@
             methodNote.textContent = `Méthode utilisée : ${methodName}.`;
         }
 
+        let suggestionTimer = null;
+
+        function shortSuggestionName(result) {
+            const address = result.address || {};
+            return result.name || address.road || address.city || address.town || address.village || result.display_name.split(",")[0];
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, (char) => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            }[char]));
+        }
+
+        function renderSuggestions(results) {
+            if (!results.length) {
+                suggestionsEl.innerHTML = '<div class="suggestion-detail">Aucune adresse trouvée. Essaie avec ville + pays.</div>';
+                return;
+            }
+
+            suggestionsEl.innerHTML = results.map((result, index) => `
+                <button class="suggestion-item" type="button" data-index="${index}">
+                    <span class="suggestion-name">${escapeHtml(shortSuggestionName(result))}</span>
+                    <span class="suggestion-detail">${escapeHtml(result.display_name)}</span>
+                </button>
+            `).join("");
+
+            suggestionsEl.querySelectorAll(".suggestion-item").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const result = results[Number(button.dataset.index)];
+                    useGeocodeResult(result);
+                });
+            });
+        }
+
+        async function searchAddressSuggestions(address) {
+            const query = address.trim();
+            if (query.length < 3) {
+                suggestionsEl.innerHTML = "";
+                return [];
+            }
+
+            statusEl.textContent = "Recherche d’adresses exactes...";
+            const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`;
+            const response = await fetch(url, { headers: { "Accept": "application/json" } });
+            if (!response.ok) throw new Error("Impossible de rechercher cette adresse.");
+
+            const results = await response.json();
+            renderSuggestions(results);
+            statusEl.textContent = results.length ? "Choisis une adresse dans les suggestions." : "Aucune adresse trouvée.";
+            return results;
+        }
+
+        async function reverseGeocode(latitude, longitude) {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`;
+            const response = await fetch(url, { headers: { "Accept": "application/json" } });
+            if (!response.ok) return null;
+            return response.json();
+        }
+
         async function fetchPrayerTimes(url, label) {
             statusEl.textContent = "Calcul des horaires en cours...";
             const response = await fetch(url);
@@ -191,7 +258,7 @@
             statusEl.textContent = label;
         }
 
-        async function loadByCoordinates(latitude, longitude, accuracy) {
+        async function loadByCoordinates(latitude, longitude, accuracy, addressLabel) {
             lastRequest = { type: "coords", latitude, longitude, accuracy };
             latInput.value = latitude.toFixed(6);
             lonInput.value = longitude.toFixed(6);
@@ -199,33 +266,20 @@
             const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${selectedMethod()}`;
             const accuracyText = Number.isFinite(accuracy) ? ` · précision navigateur : environ ${Math.round(accuracy)} m` : "";
             await fetchPrayerTimes(url, `Position utilisée : ${latitude.toFixed(5)}, ${longitude.toFixed(5)}${accuracyText}.`);
+            if (addressLabel) detectedAddressEl.textContent = `Adresse : ${addressLabel}`;
         }
 
-        async function geocodeAddress(address) {
-            statusEl.textContent = "Recherche des coordonnées de l’adresse...";
-            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
-            const response = await fetch(url, { headers: { "Accept": "application/json" } });
-            if (!response.ok) throw new Error("Impossible de rechercher cette adresse.");
+        async function useGeocodeResult(result) {
+            const latitude = Number(result.lat);
+            const longitude = Number(result.lon);
+            const label = result.display_name || addressInput.value.trim();
 
-            const results = await response.json();
-            if (!results.length) throw new Error("Adresse introuvable. Essaie avec ville + pays, par exemple Toulouse, France.");
-
-            return {
-                latitude: Number(results[0].lat),
-                longitude: Number(results[0].lon),
-                label: results[0].display_name || address
-            };
-        }
-
-        async function loadByAddress(address) {
-            lastRequest = { type: "address", address };
-            addressInput.value = address;
-
-            const location = await geocodeAddress(address);
-            lastRequest = { type: "address", address, location };
-            await loadByCoordinates(location.latitude, location.longitude);
-            lastRequest = { type: "address", address, location };
-            statusEl.textContent = `Adresse utilisée : ${location.label}.`;
+            addressInput.value = label;
+            suggestionsEl.innerHTML = "";
+            detectedAddressEl.textContent = `Adresse sélectionnée : ${label}`;
+            lastRequest = { type: "address", address: label, latitude, longitude };
+            await loadByCoordinates(latitude, longitude, undefined, label);
+            lastRequest = { type: "address", address: label, latitude, longitude };
         }
 
         document.getElementById("useLocation").addEventListener("click", () => {
@@ -237,7 +291,10 @@
             statusEl.textContent = "Demande d’autorisation de position précise...";
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    loadByCoordinates(position.coords.latitude, position.coords.longitude, position.coords.accuracy)
+                    const { latitude, longitude, accuracy } = position.coords;
+                    reverseGeocode(latitude, longitude)
+                        .then((result) => loadByCoordinates(latitude, longitude, accuracy, result?.display_name))
+                        .catch(() => loadByCoordinates(latitude, longitude, accuracy))
                         .catch((error) => { statusEl.textContent = error.message; });
                 },
                 () => {
@@ -256,9 +313,18 @@
                 return;
             }
 
-            loadByAddress(address).catch((error) => {
+            searchAddressSuggestions(address).catch((error) => {
                 statusEl.textContent = error.message;
             });
+        });
+
+        addressInput.addEventListener("input", () => {
+            clearTimeout(suggestionTimer);
+            suggestionTimer = setTimeout(() => {
+                searchAddressSuggestions(addressInput.value).catch((error) => {
+                    statusEl.textContent = error.message;
+                });
+            }, 550);
         });
 
         document.getElementById("manualForm").addEventListener("submit", (event) => {
@@ -271,6 +337,7 @@
                 return;
             }
 
+            detectedAddressEl.textContent = "";
             loadByCoordinates(latitude, longitude).catch((error) => {
                 statusEl.textContent = error.message;
             });
@@ -283,7 +350,8 @@
             }
 
             if (lastRequest.type === "address") {
-                loadByAddress(lastRequest.address).catch((error) => { statusEl.textContent = error.message; });
+                loadByCoordinates(lastRequest.latitude, lastRequest.longitude, undefined, lastRequest.address)
+                    .catch((error) => { statusEl.textContent = error.message; });
                 return;
             }
 
