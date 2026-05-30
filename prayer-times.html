@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Horaires de prière - Méthode de Médine | ASF</title>
+    <title>Horaires de prière localisés | ASF</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=prayer-1">
+    <link rel="stylesheet" href="style.css?v=prayer-2">
 </head>
 <body>
     <nav>
@@ -22,36 +22,71 @@
 
     <main class="tutorial-hero">
         <div class="hero-inner">
-            <div class="eyebrow">Géolocalisation · Méthode de Médine</div>
+            <div class="eyebrow">Géolocalisation · Méthode configurable</div>
             <h1>Horaires de <span class="gradient-text">prière</span></h1>
-            <p class="lead">Autorise ta position pour calculer automatiquement les horaires du jour selon la méthode Umm Al-Qura, utilisée comme référence saoudienne pour la région Médine-Mecque.</p>
+            <p class="lead">Utilise ta position, une adresse ou des coordonnées précises. Sur ordinateur, la position peut être approximative : pour Toulouse, la recherche par ville ou l’entrée manuelle donne souvent un résultat plus fiable.</p>
 
             <div class="prayer-panel">
                 <section class="prayer-card">
-                    <h2>Calcul automatique</h2>
-                    <p>La page demande uniquement ta position au navigateur. Si tu refuses, tu peux saisir les coordonnées manuellement.</p>
+                    <h2>Localisation</h2>
+                    <p>Autorise la position précise si ton navigateur la propose. Sinon, saisis une ville comme <strong>Toulouse, France</strong>, ou des coordonnées.</p>
 
                     <div class="location-actions">
-                        <button class="btn btn-primary" type="button" id="useLocation">Utiliser ma position</button>
+                        <button class="btn btn-primary" type="button" id="useLocation">Utiliser ma position précise</button>
                         <button class="btn" type="button" id="refreshTimes">Actualiser</button>
                     </div>
+
+                    <form class="location-form" id="addressForm">
+                        <div class="field">
+                            <label for="address">Ville ou adresse</label>
+                            <input id="address" name="address" type="text" placeholder="Ex : Toulouse, France">
+                        </div>
+                        <button class="btn" type="submit">Calculer avec cette adresse</button>
+                    </form>
 
                     <form class="location-form" id="manualForm">
                         <div class="field-row">
                             <div class="field">
                                 <label for="latitude">Latitude</label>
-                                <input id="latitude" name="latitude" type="number" step="0.000001" placeholder="Ex : 43.2951">
+                                <input id="latitude" name="latitude" type="number" step="0.000001" placeholder="Toulouse : 43.604652">
                             </div>
                             <div class="field">
                                 <label for="longitude">Longitude</label>
-                                <input id="longitude" name="longitude" type="number" step="0.000001" placeholder="Ex : -0.3708">
+                                <input id="longitude" name="longitude" type="number" step="0.000001" placeholder="Toulouse : 1.444209">
                             </div>
                         </div>
                         <button class="btn" type="submit">Calculer avec ces coordonnées</button>
                     </form>
 
-                    <div class="prayer-status" id="status">En attente de ta position.</div>
-                    <p class="method-note">Méthode utilisée : Umm Al-Qura University, Makkah. Paramètre API : <code>method=4</code>.</p>
+                    <div class="field method-field">
+                        <label for="methodSelect">Méthode de calcul</label>
+                        <select id="methodSelect">
+                            <option value="3">Muslim World League</option>
+                            <option value="4" selected>Umm Al-Qura University, Makkah</option>
+                            <option value="2">Islamic Society of North America</option>
+                            <option value="5">Egyptian General Authority of Survey</option>
+                            <option value="1">University of Islamic Sciences, Karachi</option>
+                            <option value="7">Institute of Geophysics, University of Tehran</option>
+                            <option value="8">Gulf Region</option>
+                            <option value="9">Kuwait</option>
+                            <option value="10">Qatar</option>
+                            <option value="11">Majlis Ugama Islam Singapura</option>
+                            <option value="12">Union Organization islamic de France</option>
+                            <option value="13">Diyanet İşleri Başkanlığı, Turkey</option>
+                            <option value="14">Spiritual Administration of Muslims of Russia</option>
+                            <option value="15">Moonsighting Committee</option>
+                            <option value="16">Dubai, UAE</option>
+                            <option value="17">JAKIM, Malaysia</option>
+                            <option value="18">Tunisia</option>
+                            <option value="19">Algeria</option>
+                            <option value="20">Kementerian Agama Republik Indonesia</option>
+                            <option value="21">Morocco</option>
+                            <option value="22">Comunidade Islâmica de Lisboa</option>
+                        </select>
+                    </div>
+
+                    <div class="prayer-status" id="status">En attente d’une localisation.</div>
+                    <p class="method-note" id="methodNote">Méthode utilisée : Umm Al-Qura University, Makkah.</p>
                 </section>
 
                 <section class="prayer-card">
@@ -65,14 +100,16 @@
         </div>
     </main>
 
-    <script src="script.js?v=prayer-1"></script>
+    <script src="script.js?v=prayer-2"></script>
     <script>
-        const method = 4;
         const statusEl = document.getElementById("status");
         const gridEl = document.getElementById("timesGrid");
         const nextEl = document.getElementById("nextPrayer");
         const latInput = document.getElementById("latitude");
         const lonInput = document.getElementById("longitude");
+        const addressInput = document.getElementById("address");
+        const methodSelect = document.getElementById("methodSelect");
+        const methodNote = document.getElementById("methodNote");
 
         const prayerLabels = {
             Fajr: "Fajr",
@@ -83,7 +120,7 @@
             Isha: "Isha"
         };
 
-        let lastCoords = null;
+        let lastRequest = null;
 
         function todayForApi() {
             const now = new Date();
@@ -91,6 +128,14 @@
             const mm = String(now.getMonth() + 1).padStart(2, "0");
             const yyyy = now.getFullYear();
             return `${dd}-${mm}-${yyyy}`;
+        }
+
+        function selectedMethod() {
+            return methodSelect.value;
+        }
+
+        function selectedMethodName() {
+            return methodSelect.options[methodSelect.selectedIndex].textContent;
         }
 
         function cleanTime(value) {
@@ -115,10 +160,12 @@
 
         function renderTimes(timings, meta) {
             const next = findNextPrayer(timings);
+            const methodName = meta.method?.name || selectedMethodName();
+            const timezone = meta.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
             nextEl.innerHTML = `
                 <strong>Prochaine prière : ${next.label}</strong>
-                <span>${next.time} · ${meta.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+                <span>${next.time} · ${timezone}</span>
             `;
 
             gridEl.innerHTML = Object.entries(prayerLabels).map(([key, label]) => {
@@ -130,40 +177,88 @@
                     </div>
                 `;
             }).join("");
+
+            methodNote.textContent = `Méthode utilisée : ${methodName}.`;
         }
 
-        async function loadPrayerTimes(latitude, longitude) {
-            lastCoords = { latitude, longitude };
-            latInput.value = latitude.toFixed(6);
-            lonInput.value = longitude.toFixed(6);
+        async function fetchPrayerTimes(url, label) {
             statusEl.textContent = "Calcul des horaires en cours...";
-
-            const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${method}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error("Impossible de récupérer les horaires.");
 
             const payload = await response.json();
             renderTimes(payload.data.timings, payload.data.meta);
-            statusEl.textContent = `Position utilisée : ${latitude.toFixed(4)}, ${longitude.toFixed(4)}.`;
+            statusEl.textContent = label;
+        }
+
+        async function loadByCoordinates(latitude, longitude, accuracy) {
+            lastRequest = { type: "coords", latitude, longitude, accuracy };
+            latInput.value = latitude.toFixed(6);
+            lonInput.value = longitude.toFixed(6);
+
+            const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${selectedMethod()}`;
+            const accuracyText = Number.isFinite(accuracy) ? ` · précision navigateur : environ ${Math.round(accuracy)} m` : "";
+            await fetchPrayerTimes(url, `Position utilisée : ${latitude.toFixed(5)}, ${longitude.toFixed(5)}${accuracyText}.`);
+        }
+
+        async function geocodeAddress(address) {
+            statusEl.textContent = "Recherche des coordonnées de l’adresse...";
+            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
+            const response = await fetch(url, { headers: { "Accept": "application/json" } });
+            if (!response.ok) throw new Error("Impossible de rechercher cette adresse.");
+
+            const results = await response.json();
+            if (!results.length) throw new Error("Adresse introuvable. Essaie avec ville + pays, par exemple Toulouse, France.");
+
+            return {
+                latitude: Number(results[0].lat),
+                longitude: Number(results[0].lon),
+                label: results[0].display_name || address
+            };
+        }
+
+        async function loadByAddress(address) {
+            lastRequest = { type: "address", address };
+            addressInput.value = address;
+
+            const location = await geocodeAddress(address);
+            lastRequest = { type: "address", address, location };
+            await loadByCoordinates(location.latitude, location.longitude);
+            lastRequest = { type: "address", address, location };
+            statusEl.textContent = `Adresse utilisée : ${location.label}.`;
         }
 
         document.getElementById("useLocation").addEventListener("click", () => {
             if (!navigator.geolocation) {
-                statusEl.textContent = "La géolocalisation n'est pas disponible sur ce navigateur.";
+                statusEl.textContent = "La géolocalisation n’est pas disponible sur ce navigateur.";
                 return;
             }
 
-            statusEl.textContent = "Demande d'autorisation de position...";
+            statusEl.textContent = "Demande d’autorisation de position précise...";
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    loadPrayerTimes(position.coords.latitude, position.coords.longitude)
+                    loadByCoordinates(position.coords.latitude, position.coords.longitude, position.coords.accuracy)
                         .catch((error) => { statusEl.textContent = error.message; });
                 },
                 () => {
-                    statusEl.textContent = "Position refusée. Tu peux saisir latitude et longitude manuellement.";
+                    statusEl.textContent = "Position refusée ou trop imprécise. Essaie avec “Toulouse, France” ou tes coordonnées.";
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+                { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
             );
+        });
+
+        document.getElementById("addressForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const address = addressInput.value.trim();
+
+            if (!address) {
+                statusEl.textContent = "Entre une ville ou une adresse.";
+                return;
+            }
+
+            loadByAddress(address).catch((error) => {
+                statusEl.textContent = error.message;
+            });
         });
 
         document.getElementById("manualForm").addEventListener("submit", (event) => {
@@ -176,21 +271,32 @@
                 return;
             }
 
-            loadPrayerTimes(latitude, longitude).catch((error) => {
+            loadByCoordinates(latitude, longitude).catch((error) => {
                 statusEl.textContent = error.message;
             });
         });
 
         document.getElementById("refreshTimes").addEventListener("click", () => {
-            if (!lastCoords) {
-                statusEl.textContent = "Choisis d'abord une position.";
+            if (!lastRequest) {
+                statusEl.textContent = "Choisis d’abord une localisation.";
                 return;
             }
 
-            loadPrayerTimes(lastCoords.latitude, lastCoords.longitude).catch((error) => {
-                statusEl.textContent = error.message;
-            });
+            if (lastRequest.type === "address") {
+                loadByAddress(lastRequest.address).catch((error) => { statusEl.textContent = error.message; });
+                return;
+            }
+
+            loadByCoordinates(lastRequest.latitude, lastRequest.longitude, lastRequest.accuracy)
+                .catch((error) => { statusEl.textContent = error.message; });
         });
+
+        methodSelect.addEventListener("change", () => {
+            methodNote.textContent = `Méthode utilisée : ${selectedMethodName()}.`;
+            if (lastRequest) document.getElementById("refreshTimes").click();
+        });
+
+        methodNote.textContent = `Méthode utilisée : ${selectedMethodName()}.`;
     </script>
 </body>
 </html>

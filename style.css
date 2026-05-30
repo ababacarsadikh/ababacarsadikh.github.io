@@ -735,7 +735,8 @@ th {
     font-weight: 700;
 }
 
-.field input {
+.field input,
+.field select {
     width: 100%;
     min-height: 44px;
     border: 1px solid var(--border);
@@ -744,6 +745,10 @@ th {
     color: var(--text);
     padding: 10px 12px;
     font: inherit;
+}
+
+.method-field {
+    margin-top: 18px;
 }
 
 .prayer-status {
