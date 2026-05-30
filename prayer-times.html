@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horaires de prière localisés | ASF</title>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=prayer-4">
+    <link rel="stylesheet" href="style.css?v=prayer-5">
 </head>
 <body>
     <nav>
@@ -49,11 +49,11 @@
                         <div class="field-row">
                             <div class="field">
                                 <label for="latitude">Latitude</label>
-                                <input id="latitude" name="latitude" type="number" step="0.000001" placeholder="Toulouse : 43.604652">
+                                <input id="latitude" name="latitude" type="number" step="0.00000000000001" placeholder="Ex : 43.57085122905969">
                             </div>
                             <div class="field">
                                 <label for="longitude">Longitude</label>
-                                <input id="longitude" name="longitude" type="number" step="0.000001" placeholder="Toulouse : 1.444209">
+                                <input id="longitude" name="longitude" type="number" step="0.00000000000001" placeholder="Ex : 1.3961758431308098">
                             </div>
                         </div>
                         <button class="btn" type="submit">Calculer avec ces coordonnées</button>
@@ -92,13 +92,9 @@
                 </section>
 
                 <section class="prayer-card">
-                    <div class="next-prayer" id="nextPrayer">
-                        <strong>Prochaine prière</strong>
-                        <span>Les horaires apparaîtront ici après localisation.</span>
-                    </div>
                     <div class="location-summary" id="locationSummary">
                         <strong>Lieu utilisé</strong>
-                        <span>Aucun lieu sélectionné.</span>
+                        <span>Choisis une adresse ou entre tes coordonnées exactes.</span>
                     </div>
                     <div class="prayer-times-grid" id="timesGrid"></div>
                 </section>
@@ -106,11 +102,10 @@
         </div>
     </main>
 
-    <script src="script.js?v=prayer-4"></script>
+    <script src="script.js?v=prayer-5"></script>
     <script>
         const statusEl = document.getElementById("status");
         const gridEl = document.getElementById("timesGrid");
-        const nextEl = document.getElementById("nextPrayer");
         const locationSummaryEl = document.getElementById("locationSummary");
         const latInput = document.getElementById("latitude");
         const lonInput = document.getElementById("longitude");
@@ -158,29 +153,12 @@
             return date;
         }
 
-        function findNextPrayer(timings) {
-            const now = new Date();
-            const entries = Object.keys(prayerLabels)
-                .filter((key) => key !== "Sunrise")
-                .map((key) => ({ key, label: prayerLabels[key], time: cleanTime(timings[key]), date: timeToDate(timings[key]) }));
-
-            return entries.find((entry) => entry.date > now) || entries[0];
-        }
-
         function renderTimes(timings, meta) {
-            const next = findNextPrayer(timings);
             const methodName = meta.method?.name || selectedMethodName();
-            const timezone = meta.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-            nextEl.innerHTML = `
-                <strong>Prochaine prière : ${next.label}</strong>
-                <span>${next.time} · ${timezone}</span>
-            `;
 
             gridEl.innerHTML = Object.entries(prayerLabels).map(([key, label]) => {
-                const isNext = key === next.key;
                 return `
-                    <div class="prayer-time ${isNext ? "next" : ""}">
+                    <div class="prayer-time">
                         <span class="prayer-name">${label}</span>
                         <span class="prayer-clock">${cleanTime(timings[key])}</span>
                     </div>
@@ -269,19 +247,19 @@
             locationSummaryEl.innerHTML = `
                 <strong>Lieu utilisé</strong>
                 ${addressText}
-                <span>Lat ${latitude.toFixed(6)} · Lon ${longitude.toFixed(6)}${accuracyText}</span>
+                <span>Latitude ${latitude.toFixed(14)} · Longitude ${longitude.toFixed(14)}${accuracyText}</span>
             `;
         }
 
         async function loadByCoordinates(latitude, longitude, accuracy, addressLabel) {
             lastRequest = { type: "coords", latitude, longitude, accuracy };
-            latInput.value = latitude.toFixed(6);
-            lonInput.value = longitude.toFixed(6);
+            latInput.value = String(latitude);
+            lonInput.value = String(longitude);
             updateLocationSummary(latitude, longitude, addressLabel, accuracy);
 
             const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${selectedMethod()}`;
             const accuracyText = Number.isFinite(accuracy) ? ` · précision navigateur : environ ${Math.round(accuracy)} m` : "";
-            await fetchPrayerTimes(url, `Position utilisée : ${latitude.toFixed(5)}, ${longitude.toFixed(5)}${accuracyText}.`);
+            await fetchPrayerTimes(url, `Coordonnées utilisées : ${latitude.toFixed(14)}, ${longitude.toFixed(14)}${accuracyText}.`);
             if (addressLabel) detectedAddressEl.textContent = `Adresse : ${addressLabel}`;
         }
 
@@ -353,10 +331,13 @@
                 return;
             }
 
-            detectedAddressEl.textContent = "";
-            loadByCoordinates(latitude, longitude).catch((error) => {
-                statusEl.textContent = error.message;
-            });
+            detectedAddressEl.textContent = "Recherche de l’adresse correspondant aux coordonnées...";
+            reverseGeocode(latitude, longitude)
+                .then((result) => loadByCoordinates(latitude, longitude, undefined, result?.display_name))
+                .catch(() => loadByCoordinates(latitude, longitude))
+                .catch((error) => {
+                    statusEl.textContent = error.message;
+                });
         });
 
         document.getElementById("refreshTimes").addEventListener("click", () => {
