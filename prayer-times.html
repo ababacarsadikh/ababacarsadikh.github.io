@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Horaires de prière - Méthode de Médine | ASF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=prayer-1">
+</head>
+<body>
+    <nav>
+        <a href="index.html" class="nav-logo">ASF</a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">Portfolio</a>
+            <a href="index.html#tutoriels" class="nav-link">Tutoriels</a>
+            <a href="tutorial-arduino.html" class="nav-link">Arduino</a>
+            <a href="tutorial-yolo.html" class="nav-link">YOLOv8</a>
+            <a href="prayer-times.html" class="nav-link active">Prières</a>
+            <button class="theme-toggle" type="button" data-theme-toggle>🌙</button>
+        </div>
+    </nav>
+
+    <main class="tutorial-hero">
+        <div class="hero-inner">
+            <div class="eyebrow">Géolocalisation · Méthode de Médine</div>
+            <h1>Horaires de <span class="gradient-text">prière</span></h1>
+            <p class="lead">Autorise ta position pour calculer automatiquement les horaires du jour selon la méthode Umm Al-Qura, utilisée comme référence saoudienne pour la région Médine-Mecque.</p>
+
+            <div class="prayer-panel">
+                <section class="prayer-card">
+                    <h2>Calcul automatique</h2>
+                    <p>La page demande uniquement ta position au navigateur. Si tu refuses, tu peux saisir les coordonnées manuellement.</p>
+
+                    <div class="location-actions">
+                        <button class="btn btn-primary" type="button" id="useLocation">Utiliser ma position</button>
+                        <button class="btn" type="button" id="refreshTimes">Actualiser</button>
+                    </div>
+
+                    <form class="location-form" id="manualForm">
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="latitude">Latitude</label>
+                                <input id="latitude" name="latitude" type="number" step="0.000001" placeholder="Ex : 43.2951">
+                            </div>
+                            <div class="field">
+                                <label for="longitude">Longitude</label>
+                                <input id="longitude" name="longitude" type="number" step="0.000001" placeholder="Ex : -0.3708">
+                            </div>
+                        </div>
+                        <button class="btn" type="submit">Calculer avec ces coordonnées</button>
+                    </form>
+
+                    <div class="prayer-status" id="status">En attente de ta position.</div>
+                    <p class="method-note">Méthode utilisée : Umm Al-Qura University, Makkah. Paramètre API : <code>method=4</code>.</p>
+                </section>
+
+                <section class="prayer-card">
+                    <div class="next-prayer" id="nextPrayer">
+                        <strong>Prochaine prière</strong>
+                        <span>Les horaires apparaîtront ici après localisation.</span>
+                    </div>
+                    <div class="prayer-times-grid" id="timesGrid"></div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js?v=prayer-1"></script>
+    <script>
+        const method = 4;
+        const statusEl = document.getElementById("status");
+        const gridEl = document.getElementById("timesGrid");
+        const nextEl = document.getElementById("nextPrayer");
+        const latInput = document.getElementById("latitude");
+        const lonInput = document.getElementById("longitude");
+
+        const prayerLabels = {
+            Fajr: "Fajr",
+            Sunrise: "Lever du soleil",
+            Dhuhr: "Dhuhr",
+            Asr: "Asr",
+            Maghrib: "Maghrib",
+            Isha: "Isha"
+        };
+
+        let lastCoords = null;
+
+        function todayForApi() {
+            const now = new Date();
+            const dd = String(now.getDate()).padStart(2, "0");
+            const mm = String(now.getMonth() + 1).padStart(2, "0");
+            const yyyy = now.getFullYear();
+            return `${dd}-${mm}-${yyyy}`;
+        }
+
+        function cleanTime(value) {
+            return value.split(" ")[0];
+        }
+
+        function timeToDate(time) {
+            const [hours, minutes] = cleanTime(time).split(":").map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function findNextPrayer(timings) {
+            const now = new Date();
+            const entries = Object.keys(prayerLabels)
+                .filter((key) => key !== "Sunrise")
+                .map((key) => ({ key, label: prayerLabels[key], time: cleanTime(timings[key]), date: timeToDate(timings[key]) }));
+
+            return entries.find((entry) => entry.date > now) || entries[0];
+        }
+
+        function renderTimes(timings, meta) {
+            const next = findNextPrayer(timings);
+
+            nextEl.innerHTML = `
+                <strong>Prochaine prière : ${next.label}</strong>
+                <span>${next.time} · ${meta.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
+            `;
+
+            gridEl.innerHTML = Object.entries(prayerLabels).map(([key, label]) => {
+                const isNext = key === next.key;
+                return `
+                    <div class="prayer-time ${isNext ? "next" : ""}">
+                        <span class="prayer-name">${label}</span>
+                        <span class="prayer-clock">${cleanTime(timings[key])}</span>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        async function loadPrayerTimes(latitude, longitude) {
+            lastCoords = { latitude, longitude };
+            latInput.value = latitude.toFixed(6);
+            lonInput.value = longitude.toFixed(6);
+            statusEl.textContent = "Calcul des horaires en cours...";
+
+            const url = `https://api.aladhan.com/v1/timings/${todayForApi()}?latitude=${latitude}&longitude=${longitude}&method=${method}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Impossible de récupérer les horaires.");
+
+            const payload = await response.json();
+            renderTimes(payload.data.timings, payload.data.meta);
+            statusEl.textContent = `Position utilisée : ${latitude.toFixed(4)}, ${longitude.toFixed(4)}.`;
+        }
+
+        document.getElementById("useLocation").addEventListener("click", () => {
+            if (!navigator.geolocation) {
+                statusEl.textContent = "La géolocalisation n'est pas disponible sur ce navigateur.";
+                return;
+            }
+
+            statusEl.textContent = "Demande d'autorisation de position...";
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    loadPrayerTimes(position.coords.latitude, position.coords.longitude)
+                        .catch((error) => { statusEl.textContent = error.message; });
+                },
+                () => {
+                    statusEl.textContent = "Position refusée. Tu peux saisir latitude et longitude manuellement.";
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+            );
+        });
+
+        document.getElementById("manualForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const latitude = Number(latInput.value);
+            const longitude = Number(lonInput.value);
+
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                statusEl.textContent = "Entre une latitude et une longitude valides.";
+                return;
+            }
+
+            loadPrayerTimes(latitude, longitude).catch((error) => {
+                statusEl.textContent = error.message;
+            });
+        });
+
+        document.getElementById("refreshTimes").addEventListener("click", () => {
+            if (!lastCoords) {
+                statusEl.textContent = "Choisis d'abord une position.";
+                return;
+            }
+
+            loadPrayerTimes(lastCoords.latitude, lastCoords.longitude).catch((error) => {
+                statusEl.textContent = error.message;
+            });
+        });
+    </script>
+</body>
+</html>

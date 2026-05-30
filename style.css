@@ -678,6 +678,137 @@ th {
     border-top: 0;
 }
 
+.prayer-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+    gap: 22px;
+    align-items: start;
+    margin-top: 34px;
+}
+
+.prayer-card,
+.prayer-time,
+.location-form {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+}
+
+.prayer-card {
+    padding: 24px;
+}
+
+.prayer-card h2 {
+    margin-bottom: 12px;
+    font-size: 1.35rem;
+}
+
+.prayer-card p {
+    color: var(--muted);
+}
+
+.location-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.location-form {
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+    padding: 18px;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.field label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.field input {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    padding: 10px 12px;
+    font: inherit;
+}
+
+.prayer-status {
+    margin-top: 18px;
+    color: var(--muted);
+    font-size: 0.94rem;
+}
+
+.prayer-times-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.prayer-time {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 18px;
+}
+
+.prayer-time.next {
+    border-color: var(--soft-primary-strong);
+    background: var(--soft-primary);
+}
+
+.prayer-name {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
+
+.prayer-clock {
+    color: var(--text);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.next-prayer {
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid var(--soft-primary-strong);
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--soft-primary), transparent);
+}
+
+.next-prayer strong {
+    display: block;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.next-prayer span {
+    color: var(--muted);
+}
+
+.method-note {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
 @media (max-width: 900px) {
     nav {
         padding: 12px 20px;
@@ -711,9 +842,12 @@ th {
     .tutorial-grid,
     .contact-grid,
     .skills-grid,
+    .prayer-panel,
     .tutorial-layout {
         grid-template-columns: 1fr;
     }
+
+    .field-row { grid-template-columns: 1fr; }
 
     .toc { top: 113px; }
     .toc-inner { padding: 0 20px; }
