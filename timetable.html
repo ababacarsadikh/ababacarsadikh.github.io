@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des emplois du temps IUT | ASF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=timetable-1">
+</head>
+<body>
+    <nav>
+        <a href="index.html" class="nav-logo">ASF</a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">Portfolio</a>
+            <a href="tutorial-arduino.html" class="nav-link">Arduino</a>
+            <a href="tutorial-yolo.html" class="nav-link">YOLOv8</a>
+            <a href="prayer-times.html" class="nav-link">Prières</a>
+            <a href="timetable.html" class="nav-link active">Emploi du temps</a>
+            <button class="theme-toggle" type="button" data-theme-toggle>🌙</button>
+        </div>
+    </nav>
+
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <div class="app-brand">
+                <strong>IUT Scheduler</strong>
+                <span>Gestion des emplois du temps</span>
+            </div>
+            <div class="app-menu" id="appMenu">
+                <button class="active" data-view="dashboard">Dashboard</button>
+                <button data-view="calendar">📅 Emplois du temps</button>
+                <button data-view="teachers">👨‍🏫 Enseignants</button>
+                <button data-view="students">👨‍🎓 Étudiants</button>
+                <button data-view="modules">📚 Modules</button>
+                <button data-view="rooms">🏫 Salles</button>
+                <button data-view="history">🕒 Historique</button>
+                <button data-view="settings">⚙️ Paramètres</button>
+            </div>
+        </aside>
+
+        <main class="app-main">
+            <div class="app-topbar">
+                <div>
+                    <div class="eyebrow">MVP interactif · Données de démonstration</div>
+                    <h1>Gestion des emplois du temps IUT</h1>
+                    <p>Une plateforme centralisée pour organiser, publier et consulter les emplois du temps.</p>
+                </div>
+                <div class="role-switcher" id="roleSwitcher">
+                    <button class="active" data-role="manager">Manager</button>
+                    <button data-role="teacher">Enseignant</button>
+                    <button data-role="student">Étudiant</button>
+                </div>
+            </div>
+
+            <section id="viewRoot"></section>
+        </main>
+    </div>
+
+    <div class="modal-backdrop" id="sessionModal">
+        <div class="modal">
+            <h2 id="modalTitle">Créer une séance</h2>
+            <form class="session-form" id="sessionForm">
+                <input type="hidden" id="sessionId">
+                <div class="field-row">
+                    <div class="field">
+                        <label for="moduleInput">Module</label>
+                        <select id="moduleInput"></select>
+                    </div>
+                    <div class="field">
+                        <label for="typeInput">Type</label>
+                        <select id="typeInput">
+                            <option>CM</option>
+                            <option>TD</option>
+                            <option>TP</option>
+                            <option>Projet</option>
+                            <option>Évaluation</option>
+                            <option>Examen</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="teacherInput">Enseignant</label>
+                        <select id="teacherInput"></select>
+                    </div>
+                    <div class="field">
+                        <label for="groupInput">Groupe</label>
+                        <select id="groupInput"></select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="roomInput">Salle</label>
+                        <select id="roomInput"></select>
+                    </div>
+                    <div class="field">
+                        <label for="dayInput">Jour</label>
+                        <select id="dayInput">
+                            <option value="0">Lundi</option>
+                            <option value="1">Mardi</option>
+                            <option value="2">Mercredi</option>
+                            <option value="3">Jeudi</option>
+                            <option value="4">Vendredi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label for="startInput">Heure début</label>
+                        <input id="startInput" type="time" step="900">
+                    </div>
+                    <div class="field">
+                        <label for="endInput">Heure fin</label>
+                        <input id="endInput" type="time" step="900">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="notesInput">Remarques</label>
+                    <textarea id="notesInput" placeholder="Informations complémentaires"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="duplicateSession">Dupliquer</button>
+                    <button type="button" id="deleteSession">Supprimer</button>
+                    <button type="button" id="closeModal">Annuler</button>
+                    <button class="primary" type="submit">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="script.js?v=timetable-1"></script>
+    <script>
+        const departments = ["GEII", "Informatique", "Réseaux & Télécoms"];
+        const groups = ["GEII 1A", "GEII 1B", "GEII 2A", "INFO 2A", "RT 1A"];
+        const teachers = ["Dr A. Faye", "Dr M. Diop", "Dr S. Ndiaye", "Dr A. Fall"];
+        const rooms = ["B101", "B102", "B204", "C102", "Laboratoire L1", "Laboratoire L2", "Amphi A"];
+        const modules = [
+            { code: "GEII203", name: "Algorithmique", color: "#4f63df" },
+            { code: "GEII214", name: "Électronique", color: "#108b4e" },
+            { code: "GEII226", name: "Automatisme", color: "#d97706" },
+            { code: "RT110", name: "Réseaux", color: "#0891b2" },
+            { code: "GEII301", name: "Systèmes embarqués", color: "#7b49a8" },
+            { code: "MATH101", name: "Mathématiques", color: "#be123c" }
+        ];
+        const days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+        const hours = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
+
+        let currentRole = "manager";
+        let currentView = "dashboard";
+        let weekOffset = 0;
+        let published = false;
+        let sessions = [
+            { id: 1, module: "Algorithmique", type: "TD", teacher: "Dr A. Faye", group: "GEII 1A", room: "B204", day: 0, start: "08:00", end: "10:00", notes: "Bases de programmation" },
+            { id: 2, module: "Électronique", type: "TP", teacher: "Dr M. Diop", group: "GEII 1A", room: "Laboratoire L1", day: 0, start: "10:00", end: "12:00", notes: "Mesures analogiques" },
+            { id: 3, module: "Automatisme", type: "CM", teacher: "Dr S. Ndiaye", group: "GEII 2A", room: "Amphi A", day: 1, start: "09:00", end: "11:00", notes: "" },
+            { id: 4, module: "Réseaux", type: "TD", teacher: "Dr A. Fall", group: "RT 1A", room: "C102", day: 2, start: "14:00", end: "16:00", notes: "Adressage IP" },
+            { id: 5, module: "Systèmes embarqués", type: "TP", teacher: "Dr A. Faye", group: "GEII 2A", room: "Laboratoire L2", day: 3, start: "13:00", end: "16:00", notes: "Arduino + capteurs" },
+            { id: 6, module: "Mathématiques", type: "CM", teacher: "Dr M. Diop", group: "INFO 2A", room: "B101", day: 4, start: "08:00", end: "10:00", notes: "" }
+        ];
+        let history = [
+            "Création de l'emploi du temps S35",
+            "Affectation Dr A. Faye au module Algorithmique",
+            "Publication initiale en attente"
+        ];
+
+        const root = document.getElementById("viewRoot");
+        const toast = document.getElementById("toast");
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 2400);
+        }
+
+        function timeToMinutes(time) {
+            const [h, m] = time.split(":").map(Number);
+            return h * 60 + m;
+        }
+
+        function overlaps(a, b) {
+            return a.day === b.day && timeToMinutes(a.start) < timeToMinutes(b.end) && timeToMinutes(b.start) < timeToMinutes(a.end);
+        }
+
+        function sessionConflicts(session) {
+            return sessions.filter((other) => other.id !== session.id && overlaps(session, other) && (
+                other.teacher === session.teacher || other.room === session.room || other.group === session.group
+            ));
+        }
+
+        function filteredSessions() {
+            const data = Object.fromEntries(new FormData(document.getElementById("filters") || undefined));
+            return sessions.filter((s) => {
+                if (currentRole === "teacher" && s.teacher !== "Dr A. Faye") return false;
+                if (currentRole === "student" && s.group !== "GEII 1A") return false;
+                return (!data.group || s.group === data.group)
+                    && (!data.teacher || s.teacher === data.teacher)
+                    && (!data.module || s.module === data.module)
+                    && (!data.room || s.room === data.room)
+                    && (!data.type || s.type === data.type)
+                    && (!data.search || JSON.stringify(s).toLowerCase().includes(data.search.toLowerCase()));
+            });
+        }
+
+        function weekLabel() {
+            const weekNumber = 35 + weekOffset;
+            return { weekNumber, range: `${24 + weekOffset * 7} août → ${30 + weekOffset * 7} août 2026` };
+        }
+
+        function moduleColor(name) {
+            return modules.find((m) => m.name === name)?.color || "#4f63df";
+        }
+
+        function renderDashboard() {
+            const conflicts = sessions.reduce((count, session) => count + (sessionConflicts(session).length ? 1 : 0), 0);
+            root.innerHTML = `
+                <div class="kpi-grid">
+                    <div class="kpi-card"><span>Étudiants</span><strong>128</strong></div>
+                    <div class="kpi-card"><span>Enseignants</span><strong>${teachers.length}</strong></div>
+                    <div class="kpi-card"><span>Modules</span><strong>${modules.length}</strong></div>
+                    <div class="kpi-card"><span>Conflits</span><strong>${conflicts}</strong></div>
+                </div>
+                <div class="panel-grid">
+                    <section class="data-panel">
+                        <h2>Raccourcis manager</h2>
+                        <div class="location-actions">
+                            <button class="btn btn-primary" onclick="openSessionModal()">Créer une séance</button>
+                            <button class="btn" onclick="setView('calendar')">Gérer le calendrier</button>
+                            <button class="btn" onclick="publishSchedule()">Publier l'emploi du temps</button>
+                        </div>
+                    </section>
+                    <section class="data-panel">
+                        <h2>État de publication</h2>
+                        <div class="data-list">
+                            <div class="data-row"><strong>Statut</strong><span>${published ? "PUBLISHED" : "DRAFT"}</span></div>
+                            <div class="data-row"><strong>Séances cette semaine</strong><span>${sessions.length}</span></div>
+                            <div class="data-row"><strong>Groupes concernés</strong><span>${new Set(sessions.map((s) => s.group)).size}</span></div>
+                        </div>
+                    </section>
+                </div>
+            `;
+        }
+
+        function renderFilters() {
+            return `
+                <form class="toolbar" id="filters">
+                    <select name="group"><option value="">Tous les groupes</option>${groups.map((g) => `<option>${g}</option>`).join("")}</select>
+                    <select name="teacher"><option value="">Tous les enseignants</option>${teachers.map((t) => `<option>${t}</option>`).join("")}</select>
+                    <select name="module"><option value="">Tous les modules</option>${modules.map((m) => `<option>${m.name}</option>`).join("")}</select>
+                    <select name="room"><option value="">Toutes les salles</option>${rooms.map((r) => `<option>${r}</option>`).join("")}</select>
+                    <select name="type"><option value="">Tous les types</option><option>CM</option><option>TD</option><option>TP</option><option>Projet</option><option>Évaluation</option></select>
+                    <input name="search" placeholder="Recherche globale">
+                </form>
+            `;
+        }
+
+        function renderCalendar() {
+            const week = weekLabel();
+            root.innerHTML = `
+                <div class="week-bar">
+                    <button class="btn" onclick="changeWeek(-1)">← Semaine précédente</button>
+                    <div class="week-title"><strong>S${week.weekNumber} · 2026-2027</strong><span>${week.range}</span></div>
+                    <button class="btn" onclick="changeWeek(1)">Semaine suivante →</button>
+                    <button class="btn btn-primary" onclick="currentWeek()">Cette semaine</button>
+                </div>
+                ${renderFilters()}
+                <div class="location-actions" style="margin-bottom:16px">
+                    <button class="btn btn-primary" onclick="openSessionModal()">Ajouter une séance</button>
+                    <button class="btn" onclick="publishSchedule()">Publier</button>
+                    <button class="btn" onclick="resetFilters()">Réinitialiser les filtres</button>
+                </div>
+                <div class="calendar-wrap">
+                    <div class="calendar-grid" id="calendarGrid"></div>
+                </div>
+            `;
+            document.getElementById("filters").addEventListener("input", renderCalendarCells);
+            renderCalendarCells();
+        }
+
+        function renderCalendarCells() {
+            const calendar = document.getElementById("calendarGrid");
+            const visible = filteredSessions();
+            calendar.innerHTML = `<div class="cal-head">Heure</div>${days.map((day) => `<div class="cal-head">${day}</div>`).join("")}`;
+            hours.forEach((hour) => {
+                calendar.insertAdjacentHTML("beforeend", `<div class="time-cell">${hour}</div>`);
+                days.forEach((day, dayIndex) => {
+                    const items = visible.filter((s) => s.day === dayIndex && s.start.startsWith(hour.slice(0, 2)));
+                    calendar.insertAdjacentHTML("beforeend", `
+                        <div class="day-cell" data-day="${dayIndex}" data-hour="${hour}">
+                            ${items.map((s) => `
+                                <div class="session-card ${sessionConflicts(s).length ? "conflict" : ""}" draggable="${currentRole === "manager"}" data-id="${s.id}" style="border-left-color:${moduleColor(s.module)}">
+                                    <span class="session-type">${s.type}</span>
+                                    <strong>${s.module}</strong>
+                                    <span>${s.start}-${s.end} · ${s.group}</span>
+                                    <span>${s.teacher} · ${s.room}</span>
+                                </div>
+                            `).join("")}
+                        </div>
+                    `);
+                });
+            });
+            bindSessionEvents();
+        }
+
+        function bindSessionEvents() {
+            document.querySelectorAll(".session-card").forEach((card) => {
+                card.addEventListener("click", () => openSessionModal(Number(card.dataset.id)));
+                card.addEventListener("dragstart", (event) => event.dataTransfer.setData("text/plain", card.dataset.id));
+            });
+            document.querySelectorAll(".day-cell").forEach((cell) => {
+                cell.addEventListener("dragover", (event) => event.preventDefault());
+                cell.addEventListener("drop", (event) => {
+                    event.preventDefault();
+                    if (currentRole !== "manager") return showToast("Lecture seule pour ce profil.");
+                    const id = Number(event.dataTransfer.getData("text/plain"));
+                    const session = sessions.find((s) => s.id === id);
+                    if (!session) return;
+                    session.day = Number(cell.dataset.day);
+                    session.start = cell.dataset.hour;
+                    session.end = `${String(Number(cell.dataset.hour.slice(0, 2)) + 2).padStart(2, "0")}:00`;
+                    history.unshift(`${session.module} déplacé vers ${days[session.day]} ${session.start}`);
+                    showToast(sessionConflicts(session).length ? "Déplacé avec conflit détecté." : "Séance déplacée.");
+                    renderCalendar();
+                });
+            });
+        }
+
+        function renderDataView(kind) {
+            const maps = {
+                teachers: teachers.map((name, i) => [name, `${departments[i % departments.length]} · ${i + 2} modules affectés`]),
+                students: groups.map((name, i) => [name, `${24 + i * 3} étudiants · BUT GEII`]),
+                modules: modules.map((m) => [`${m.code} · ${m.name}`, "CM 10h · TD 10h · TP 20h"]),
+                rooms: rooms.map((room, i) => [room, `${i % 2 ? "Salle classique" : "Salle spécialisée"} · capacité ${24 + i * 8}`]),
+                history: history.map((item, i) => [`Action ${i + 1}`, item]),
+                settings: [["Authentification", "Google institutionnel + SSO à connecter"], ["Base de données", "Supabase/PostgreSQL prévu"], ["Sécurité", "RBAC + Row Level Security à activer"]]
+            };
+            root.innerHTML = `
+                <section class="data-panel">
+                    <h2>${document.querySelector(`[data-view="${kind}"]`).textContent}</h2>
+                    <div class="data-list">
+                        ${maps[kind].map(([a, b]) => `<div class="data-row"><strong>${a}</strong><span>${b}</span></div>`).join("")}
+                    </div>
+                </section>
+            `;
+        }
+
+        function render() {
+            document.querySelectorAll("[data-view]").forEach((button) => button.classList.toggle("active", button.dataset.view === currentView));
+            if (currentView === "dashboard") return renderDashboard();
+            if (currentView === "calendar") return renderCalendar();
+            renderDataView(currentView);
+        }
+
+        function setView(view) {
+            currentView = view;
+            render();
+        }
+
+        function changeWeek(delta) {
+            weekOffset += delta;
+            renderCalendar();
+        }
+
+        function currentWeek() {
+            weekOffset = 0;
+            renderCalendar();
+        }
+
+        function resetFilters() {
+            document.getElementById("filters").reset();
+            renderCalendarCells();
+        }
+
+        function publishSchedule() {
+            const conflicts = sessions.some((session) => sessionConflicts(session).length);
+            published = true;
+            history.unshift(`Publication ${conflicts ? "avec conflits à vérifier" : "sans conflit"} · ${new Date().toLocaleString("fr-FR")}`);
+            showToast(conflicts ? "Publié avec avertissement de conflit." : "Emploi du temps publié.");
+            render();
+        }
+
+        function fillSelects() {
+            document.getElementById("moduleInput").innerHTML = modules.map((m) => `<option>${m.name}</option>`).join("");
+            document.getElementById("teacherInput").innerHTML = teachers.map((t) => `<option>${t}</option>`).join("");
+            document.getElementById("groupInput").innerHTML = groups.map((g) => `<option>${g}</option>`).join("");
+            document.getElementById("roomInput").innerHTML = rooms.map((r) => `<option>${r}</option>`).join("");
+        }
+
+        function openSessionModal(id) {
+            if (currentRole !== "manager") return showToast("Ce profil peut consulter mais pas modifier.");
+            fillSelects();
+            const session = sessions.find((s) => s.id === id) || { id: "", module: modules[0].name, type: "TD", teacher: teachers[0], group: groups[0], room: rooms[0], day: 0, start: "08:00", end: "10:00", notes: "" };
+            document.getElementById("modalTitle").textContent = id ? "Modifier une séance" : "Créer une séance";
+            document.getElementById("sessionId").value = session.id;
+            document.getElementById("moduleInput").value = session.module;
+            document.getElementById("typeInput").value = session.type;
+            document.getElementById("teacherInput").value = session.teacher;
+            document.getElementById("groupInput").value = session.group;
+            document.getElementById("roomInput").value = session.room;
+            document.getElementById("dayInput").value = session.day;
+            document.getElementById("startInput").value = session.start;
+            document.getElementById("endInput").value = session.end;
+            document.getElementById("notesInput").value = session.notes;
+            document.getElementById("duplicateSession").style.display = id ? "inline-block" : "none";
+            document.getElementById("deleteSession").style.display = id ? "inline-block" : "none";
+            document.getElementById("sessionModal").classList.add("open");
+        }
+
+        function closeModal() {
+            document.getElementById("sessionModal").classList.remove("open");
+        }
+
+        document.getElementById("appMenu").addEventListener("click", (event) => {
+            const button = event.target.closest("[data-view]");
+            if (button) setView(button.dataset.view);
+        });
+
+        document.getElementById("roleSwitcher").addEventListener("click", (event) => {
+            const button = event.target.closest("[data-role]");
+            if (!button) return;
+            currentRole = button.dataset.role;
+            document.querySelectorAll("[data-role]").forEach((item) => item.classList.toggle("active", item === button));
+            showToast(`Profil actif : ${button.textContent}`);
+            render();
+        });
+
+        document.getElementById("closeModal").addEventListener("click", closeModal);
+        document.getElementById("sessionModal").addEventListener("click", (event) => {
+            if (event.target.id === "sessionModal") closeModal();
+        });
+
+        document.getElementById("sessionForm").addEventListener("submit", (event) => {
+            event.preventDefault();
+            const id = Number(document.getElementById("sessionId").value);
+            const payload = {
+                id: id || Date.now(),
+                module: document.getElementById("moduleInput").value,
+                type: document.getElementById("typeInput").value,
+                teacher: document.getElementById("teacherInput").value,
+                group: document.getElementById("groupInput").value,
+                room: document.getElementById("roomInput").value,
+                day: Number(document.getElementById("dayInput").value),
+                start: document.getElementById("startInput").value,
+                end: document.getElementById("endInput").value,
+                notes: document.getElementById("notesInput").value
+            };
+            if (id) sessions = sessions.map((s) => s.id === id ? payload : s);
+            else sessions.push(payload);
+            history.unshift(`${payload.module} ${id ? "modifié" : "créé"} · ${days[payload.day]} ${payload.start}`);
+            closeModal();
+            showToast(sessionConflicts(payload).length ? "Séance enregistrée avec conflit." : "Séance enregistrée.");
+            currentView = "calendar";
+            render();
+        });
+
+        document.getElementById("deleteSession").addEventListener("click", () => {
+            const id = Number(document.getElementById("sessionId").value);
+            const session = sessions.find((s) => s.id === id);
+            sessions = sessions.filter((s) => s.id !== id);
+            history.unshift(`${session?.module || "Séance"} supprimé`);
+            closeModal();
+            render();
+        });
+
+        document.getElementById("duplicateSession").addEventListener("click", () => {
+            const id = Number(document.getElementById("sessionId").value);
+            const session = sessions.find((s) => s.id === id);
+            if (!session) return;
+            sessions.push({ ...session, id: Date.now(), start: "16:00", end: "18:00" });
+            history.unshift(`${session.module} dupliqué`);
+            closeModal();
+            render();
+        });
+
+        render();
+    </script>
+</body>
+</html>
